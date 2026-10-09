@@ -361,23 +361,33 @@ continue
 
 ---
 
-## 提示词八：练习1 入口汇编作用分析
+## 提示词八：练习1 启动入口分析
 
 **使用成员**：2512163-李思翰
 
-### 第一次迭代
+> 以下为成员一实际使用的原始提示词记录，未经改写。
 
-```text
-[PROMPT]
-任务：阅读 kern/init/entry.S，说明其中 la sp, bootstacktop 与 tail kern_init 两条指令
-完成了什么操作，目的是什么。
-操作要求：你必须在项目中读取实际的 entry.S 文件内容，基于文件真实代码分析，
-不要凭记忆或通用知识推测。
-输出要求：直接读取文件后给出结论，逐条指令说明"操作"与"目的"，并说明依据。
+## 练习1：启动入口分析
 
-[RELY]
-// kern/init/entry.S 真实内容
-.section .text,"ax",%progbits
+### Prompt 1.1 — 分析 entry.S 入口汇编
+
+**使用场景：** 分析 `kern/init/entry.S` 中的两条关键指令
+
+**提示词：**
+
+```markdown
+请分析以下 RISC-V 内核入口汇编代码（kern/init/entry.S），解释：
+1. `la sp, bootstacktop` 这条指令完成了什么操作？为什么要设置栈指针？
+2. `tail kern_init` 这条指令完成了什么操作？与普通的函数调用有什么区别？
+3. 结合操作系统内核启动流程，说明这两条指令在启动过程中的作用。
+
+相关代码如下：
+
+```asm
+#include <mmu.h>
+#include <memlayout.h>
+
+    .section .text,"ax",%progbits
     .globl kern_entry
 kern_entry:
     la sp, bootstacktop
@@ -385,151 +395,75 @@ kern_entry:
     tail kern_init
 
 .section .data
-    # .align 2^12
     .align PGSHIFT
     .global bootstack
 bootstack:
     .space KSTACKSIZE
     .global bootstacktop
 bootstacktop:
-
-// kern/mm/mmu.h
-#define PGSIZE          4096                    // bytes mapped by a page
-#define PGSHIFT         12                      // log2(PGSIZE)
-
-// kern/mm/memlayout.h
-#define KSTACKPAGE          2
-#define KSTACKSIZE          (KSTACKPAGE * PGSIZE)       // 8192
-
-// tools/kernel.ld
-OUTPUT_ARCH(riscv)
-ENTRY(kern_entry)
-BASE_ADDRESS = 0x80200000;
-
-// RISC-V 调用约定：a0-a7 为函数参数寄存器，sp(x2) 为栈指针，必须 16 字节对齐
-// 栈从高地址向低地址增长
-
-[GUARANTEE]
-不修改任何代码文件。必须产出：
-1. la sp, bootstacktop 的操作说明与目的说明
-2. tail kern_init 的操作说明与目的说明
-3. 说明为何栈指针应指向栈顶而非栈底
-
-[SPECIFICATION]
-## la sp, bootstacktop
-Pre-Condition：
-- CPU 已由 OpenSBI 移交控制权，PC 位于 0x80200000，尚未执行本指令
-- sp 仍指向 OpenSBI 的栈，该固件退出后不再可用
-Post-Condition：
-- sp 指向内核栈栈顶，内核栈区域可供后续 C 函数使用
-Case 1：
-- la 为伪指令，经 auipc + addi PC 相对寻址算出 bootstacktop 的地址并载入 sp；
-  栈为空的条件下，后续入栈操作向低地址方向进行，故初始 sp 必须为栈顶（最高地址）
-Requirements：
-- 说明该指令同时满足 RISC-V ABI 对 sp 16 字节对齐的要求
-- 不得将"设置 sp"与"分配栈内存"混为一谈：内存已由 .space 静态预留，本指令只设置指针
-
-## tail kern_init
-Pre-Condition：
-- sp 已正确指向内核栈栈顶
-Post-Condition：
-- 控制权移交 kern_init，返回地址无效，程序不再返回汇编入口
-Case 1：
-- tail 为伪指令，等价于 auipc t0,0 + jalr x0,t0,0，跳转同时将 ra 清零；
-  与 kern_init 的 __attribute__((noreturn)) 声明及 while(1) 终止行为一致
-Requirements：
-- 必须说明 tail 与 call/jal 的差异在于不保存返回地址
-- 必须说明为何内核启动不应存在返回路径
 ```
 
-**遇到的问题：**
-
-- 问题1：初次回答把 `la` 当成"分配栈空间"，但栈内存实际已由 `bootstack: .space KSTACKSIZE` 静态预留，`la` 只做指针装载。属于"分配"与"设置指针"的概念混淆。
-- 问题2：初版解释只说明了功能，未说明为何必须初始化栈——缺少"OpenSBI 的栈在移交后失效"这一前提。
-- 问题3：未说明栈从高地址向低地址增长，因此无法解释为何取栈顶而非栈底。
-
-**问题解决策略：**
-
-- 针对问题1：在 [RELY] 中补入 `entry.S` 真实的 `.space KSTACKSIZE` 定义，要求结论区分"预留内存"与"设置指针"两个动作。
-- 针对问题2：在 [SPECIFICATION] 的 Pre-Condition 中明确"sp 仍指向 OpenSBI 的栈，该固件退出后不再可用"。
-- 针对问题3：在 [RELY] 中补充"栈从高地址向低地址增长"这一架构事实，并在 Case 1 中要求给出理由。
-
-### 第二次迭代
-
-```text
-[PROMPT]
-任务：修正练习1 结论中关于栈指针初始值的表述。
-操作要求：你必须在项目中读取实际 entry.S 与 kernel.ld，不要改动代码。
-输出要求：只修正结论表述，说明 la 伪指令的两条真实指令实现与 PC 相对寻址过程。
-
-[RELY]
-// RISC-V 伪指令 la 的等价展开
-la rd, symbol  ≡  auipc rd, %pcrel_hi(symbol) ; addi rd, rd, %pcrel_lo(symbol)
-
-// 栈方向由架构约定：高地址向低地址增长
-// 实测（GDB 停在内核入口时）：sp = 0x8001bd80（OpenSBI 的栈）
-// 执行该指令后：sp = 0x80203000，与 bootstacktop 符号地址一致
-
-[GUARANTEE]
-不修改代码。修正后结论须与实测数值一致。
-
-[SPECIFICATION]
-## la sp, bootstacktop
-Post-Condition：
-- sp 等于 bootstacktop 符号地址 0x80203000
-Requirements：
-- 区分"汇编伪指令"与"真实机器指令"：la 展开为 auipc + addi 两条真实指令，
-  采用 PC 相对寻址，不依赖绝对地址
-- 修正后结论不得与 GDB 实测的 sp 数值矛盾
 ```
 
-**遇到的问题：**
+---
 
-- 初版结论未给出具体地址，而 GDB 实测可得到 `bootstacktop = 0x80203000`，缺少实测支撑显得空泛。
+### Prompt 1.2 — 追问：如果没有这些指令会怎样
 
-**问题解决策略：**
+**使用场景：** 深入理解两条指令的必要性
 
-- 在 [RELY] 中补入 GDB 实测的两组 sp 数值，使解释与第四、第五部分的调试证据形成呼应。
+**提示词：**
 
-### 第三次迭代
-
-```text
-[PROMPT]
-任务：为练习1 结论补充与练习2 的交叉印证关系。
-操作要求：读取报告中第五部分的调试记录，基于实际观测组织结论。
-输出要求：说明练习1 的静态代码分析与练习2 的动态调试证据如何互相支撑。
-
-[RELY]
-// 第五部分实测记录（节选）
-- 断点命中 kern_entry 时 PC=0x80200000，SP=0x8001bd80
-- 该 SP 落在 0x8000xxxx 区间，属于 OpenSBI 固件区域，尚未执行 la sp
-- 两次 si 执行 la sp 对应机器指令后，PC=0x80200008，SP=0x80203000，与 bootstacktop 相等
-- 再次 si 后 PC=0x8020000a，GDB 显示 kern_init，验证 tail 跳转成功
-
-[GUARANTEE]
-不修改代码。不新增未验证的结论。
-
-[SPECIFICATION]
-## 交叉印证
-Post-Condition：
-- 练习1 的每条结论均有第五部分的实测数据支撑
-Requirements：
-- 必须区分"静态代码分析得出的结论"与"动态调试观测到的事实"
-- 不得引入第五部分未记录的观察结果
+```markdown
+如果没有 `la sp, bootstacktop` 和 `tail kern_init` 这两条指令，内核启动会怎样？请分别说明缺少每条指令会导致的后果。
 ```
 
-**最终结果：**
+---
 
-- 经三次迭代，结论覆盖两条指令的操作、目的、伪指令展开、与 RISC-V ABI 的关系及为何取栈顶。
-- 每条结论均与第五部分 GDB 实测数据（`SP` 由 `0x8001bd80` 变为 `0x80203000`）对应，静态分析与动态调试互相印证。
-- 本练习为分析与说明任务，未修改任何代码文件，最终提交代码仍为原始最小内核。
+### Prompt 1.3 — 协助撰写实验报告
 
-**关键改进点总结：**
+**使用场景：** 整理练习1的实验报告内容
 
-1. 在 [RELY] 中补入 `entry.S` 真实的栈定义，使"预留内存"与"设置指针"不再混淆。
-2. 在 [SPECIFICATION] 的 Pre-Condition 中明确 OpenSBI 栈失效的前提，补全了设栈的必要性论证。
-3. 引入 GDB 实测地址（`bootstacktop = 0x80203000`）与栈方向事实，修正了无法解释栈顶选择的问题。
-4. 明确区分静态分析与动态调试证据，避免结论脱离实际运行结果。
+**提示词：**
+
+```markdown
+我需要完成实验报告中的以下部分：
+1. 练习1：理解内核启动中的程序入口操作
+2. 实验目的章节
+3. 整体逻辑分析章节
+
+请帮我按照以下模板格式撰写报告内容。
+我已经分析了 entry.S 文件，核心结论是：
+- `la sp, bootstacktop`：设置栈指针，建立内核栈，为C语言代码提供运行环境
+- `tail kern_init`：尾调用跳转，不保存返回地址，直接跳转到C入口函数 kern_init()
+```
+
+---
+
+### Prompt 1.4 — 对比 jal 和 tail 调用的区别
+
+**使用场景：** 深入理解 `tail kern_init` 为什么用 tail 而不是 jal
+
+**提示词：**
+
+```markdown
+请解释 RISC-V 中 `jal` 和 `tail`（实际是 jr）两种跳转方式的区别，
+为什么内核启动时选择 tail 调用而不是 jal？
+```
+
+---
+
+### Prompt 1.5 — 分析 bootstack 内存布局
+
+**使用场景：** 理解内核栈的建立原理
+
+**提示词：**
+
+```markdown
+分析 bootstack 和 bootstacktop 是如何定义的，栈大小是多少？
+它们在链接脚本中处于哪个段？为什么栈要这样放置？
+```
+
+---
 
 ---
 
@@ -538,7 +472,7 @@ Requirements：
 本组共记录八个阶段的提示词。其中：
 
 - **提示词一至七**由 2512436-郭睿彤 在环境准备、启动链验证、BSS 三轮测试与材料整理阶段使用，完整记录见上文。
-- 提示词八由 2512163-李思翰 在练习1 入口汇编分析阶段使用。
+- **提示词八**由 2512163-李思翰 在练习1 入口汇编分析阶段使用，共 5 个提示词（基础分析、追问无指令后果、协助撰写报告、对比 jal 与 tail、分析 bootstack 内存布局）。
 
 本次实验的特殊之处在于：基础代码已由实验指导书提供，因此提示词的重心不在"生成代码"，而在**理解已有代码、验证运行结果、规范记录过程**。所有提示词都明确要求区分"观察到的证据"与"推断的结论"，且最终报告中的每一处运行数据均可回溯到实际截图。
 
