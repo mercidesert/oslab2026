@@ -365,44 +365,31 @@ continue
 
 **使用成员**：2512163-李思翰
 
-> 以下为成员一实际使用的原始提示词记录，未经改写。
+> 以下为成员一实际使用的提示词记录，按实验指导书 lab0.5 的四段式框架标注。
 
-## 练习1：启动入口分析
+### 练习1：启动入口分析
 
 ### Prompt 1.1 — 分析 entry.S 入口汇编
 
 **使用场景：** 分析 `kern/init/entry.S` 中的两条关键指令
 
-**提示词：**
-
 ```markdown
-请分析以下 RISC-V 内核入口汇编代码（kern/init/entry.S），解释：
-1. `la sp, bootstacktop` 这条指令完成了什么操作？为什么要设置栈指针？
-2. `tail kern_init` 这条指令完成了什么操作？与普通的函数调用有什么区别？
+[PROMPT]
+分析以下 RISC-V 内核入口汇编代码（kern/init/entry.S），解释：
+1. `la sp, bootstacktop` 完成了什么操作？为什么要设置栈指针？
+2. `tail kern_init` 完成了什么操作？与普通函数调用有什么区别？
 3. 结合操作系统内核启动流程，说明这两条指令在启动过程中的作用。
 
-相关代码如下：
+[RELY]
+代码文件：kern/init/entry.S（包含 .text 段入口 kern_entry 和 .data 段 bootstack 定义）
 
-```asm
-#include <mmu.h>
-#include <memlayout.h>
+[GUARANTEE]
+- 解释 la 伪指令的实际汇编展开
+- 解释 tail 调用与 jal 调用的区别
+- 说明完整的三级启动跳流程
 
-    .section .text,"ax",%progbits
-    .globl kern_entry
-kern_entry:
-    la sp, bootstacktop
-
-    tail kern_init
-
-.section .data
-    .align PGSHIFT
-    .global bootstack
-bootstack:
-    .space KSTACKSIZE
-    .global bootstacktop
-bootstacktop:
-```
-
+[SPECIFICATION]
+输出三部分的详细分析，每部分包含"操作"和"目的"两个维度
 ```
 
 ---
@@ -411,56 +398,100 @@ bootstacktop:
 
 **使用场景：** 深入理解两条指令的必要性
 
-**提示词：**
-
 ```markdown
-如果没有 `la sp, bootstacktop` 和 `tail kern_init` 这两条指令，内核启动会怎样？请分别说明缺少每条指令会导致的后果。
+[PROMPT]
+如果没有以下两条指令，内核启动会怎样？
+1. 没有 `la sp, bootstacktop`
+2. 没有 `tail kern_init`
+
+[RELY]
+- la sp, bootstacktop：将 bootstacktop 地址加载到 sp 寄存器
+- tail kern_init：跳转到 kern_init 函数
+
+[GUARANTEE]
+- 分别说明缺少每条指令会导致的后果
+- 解释 CPU 接下来会执行什么
+
+[SPECIFICATION]
+输出两部分的详细分析，每部分包含具体后果和可能看到的错误现象
 ```
 
 ---
 
-### Prompt 1.3 — 协助撰写实验报告
+### Prompt 1.3 — 对比 jal 和 tail 调用的区别
+
+**使用场景：** 深入理解 `tail kern_init` 为什么用 tail 而不是 jal
+
+```markdown
+[PROMPT]
+请解释 RISC-V 中 `jal` 和 `tail`（实际是 jr）两种跳转方式的区别，
+为什么内核启动时选择 tail 调用而不是 jal？
+
+[RELY]
+- jal：保存返回地址到 ra 寄存器，然后跳转
+- tail（jr）：不保存返回地址，直接跳转
+
+[GUARANTEE]
+- 说明两种调用的寄存器使用差异
+- 解释为什么内核初始化适合用 tail 调用
+
+[SPECIFICATION]
+输出对比表格，包含：指令格式、ra 寄存器处理、适用场景
+```
+
+---
+
+### Prompt 1.4 — 分析 bootstack 内存布局
+
+**使用场景：** 理解内核栈的建立原理
+
+```markdown
+[PROMPT]
+分析 bootstack 和 bootstacktop 是如何定义的，栈大小是多少？
+它们在链接脚本中处于哪个段？为什么栈要这样放置？
+
+[RELY]
+- entry.S 中：.space KSTACKSIZE 定义栈空间，bootstacktop 是栈顶
+- kernel.ld 中：.data 段，BASE_ADDRESS = 0x80200000
+- memlayout.h 中：KSTACKSIZE = KSTACKPAGE * PGSIZE = 2 * 4096 = 8192
+
+[GUARANTEE]
+- 计算栈大小
+- 说明 bootstack 和 bootstacktop 的关系
+- 解释栈在内存布局中的位置
+
+[SPECIFICATION]
+输出包含具体数值和分析的说明，包含栈大小计算过程
+```
+
+---
+
+### Prompt 1.5 — 协助撰写实验报告
 
 **使用场景：** 整理练习1的实验报告内容
 
-**提示词：**
-
 ```markdown
+[PROMPT]
 我需要完成实验报告中的以下部分：
 1. 练习1：理解内核启动中的程序入口操作
 2. 实验目的章节
 3. 整体逻辑分析章节
 
-请帮我按照以下模板格式撰写报告内容。
-我已经分析了 entry.S 文件，核心结论是：
+请帮我按照模板格式撰写报告内容。
+
+[RELY]
+核心结论：
 - `la sp, bootstacktop`：设置栈指针，建立内核栈，为C语言代码提供运行环境
 - `tail kern_init`：尾调用跳转，不保存返回地址，直接跳转到C入口函数 kern_init()
-```
+- 启动流程：MROM → OpenSBI → Kernel(0x80200000) → entry.S → kern_init()
 
----
+[GUARANTEE]
+- 练习1的问题解答（la sp、tail kern_init、启动流程）
+- 实验目的（基于指导书改写）
+- 整体逻辑分析（主线 + 逐步实现）
 
-### Prompt 1.4 — 对比 jal 和 tail 调用的区别
-
-**使用场景：** 深入理解 `tail kern_init` 为什么用 tail 而不是 jal
-
-**提示词：**
-
-```markdown
-请解释 RISC-V 中 `jal` 和 `tail`（实际是 jr）两种跳转方式的区别，
-为什么内核启动时选择 tail 调用而不是 jal？
-```
-
----
-
-### Prompt 1.5 — 分析 bootstack 内存布局
-
-**使用场景：** 理解内核栈的建立原理
-
-**提示词：**
-
-```markdown
-分析 bootstack 和 bootstacktop 是如何定义的，栈大小是多少？
-它们在链接脚本中处于哪个段？为什么栈要这样放置？
+[SPECIFICATION]
+按实验报告模板格式输出，包含 markdown 代码块和表格
 ```
 
 ---
@@ -472,7 +503,7 @@ bootstacktop:
 本组共记录八个阶段的提示词。其中：
 
 - **提示词一至七**由 2512436-郭睿彤 在环境准备、启动链验证、BSS 三轮测试与材料整理阶段使用，完整记录见上文。
-- **提示词八**由 2512163-李思翰 在练习1 入口汇编分析阶段使用，共 5 个提示词（基础分析、追问无指令后果、协助撰写报告、对比 jal 与 tail、分析 bootstack 内存布局）。
+- **提示词八**由 2512163-李思翰 在练习1 入口汇编分析阶段使用，共 5 个提示词（分析 entry.S 入口汇编、追问缺失两条指令的后果、对比 jal 与 tail、分析 bootstack 内存布局、协助撰写报告），均按四段式框架标注。
 
 本次实验的特殊之处在于：基础代码已由实验指导书提供，因此提示词的重心不在"生成代码"，而在**理解已有代码、验证运行结果、规范记录过程**。所有提示词都明确要求区分"观察到的证据"与"推断的结论"，且最终报告中的每一处运行数据均可回溯到实际截图。
 
