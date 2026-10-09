@@ -1,0 +1,14 @@
+# 编译产物
+obj/
+bin/
+*.o
+*.d
+# 编辑器与系统文件
+.vscode/
+.idea/
+*.swp
+.DS_Store
+# GDB 与评测中间文件
+.gdb.in
+.qemu.out
+*.tar.gz
