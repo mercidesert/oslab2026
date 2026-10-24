@@ -34,7 +34,7 @@ static void check_alloc_page(void);
 
 // init_pmm_manager - initialize a pmm_manager instance
 static void init_pmm_manager(void) {
-    pmm_manager = &default_pmm_manager;
+    pmm_manager = &best_fit_pmm_manager;
     cprintf("memory management: %s\n", pmm_manager->name);
     pmm_manager->init();
 }
@@ -61,7 +61,7 @@ size_t nr_free_pages(void) {
     return pmm_manager->nr_free_pages();
 }
 
-//lab2 function1 李思翰
+//lab2 function1 2512163 李思翰
 
 /* page_init - probe the physical memory space, build the page descriptor
  * array and hand the remaining free pages to the current physical memory
@@ -174,3 +174,4 @@ static void check_alloc_page(void) {
     pmm_manager->check();
     cprintf("check_alloc_page() succeeded!\n");
 }
+

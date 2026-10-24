@@ -1,7 +1,7 @@
 #ifndef __KERN_MM_BUDDY_VERIFY_H__
 #define  __KERN_MM_BUDDY_VERIFY_H__
 
-//lab2 function3 李思翰2512163
+//lab2 function3 2512163 李思翰
 
 /* Buddy 分配器的独立验证层。
  *

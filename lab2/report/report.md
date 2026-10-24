@@ -13,18 +13,20 @@
 | 成员 | 负责的练习/模块 |
 |------|----------------|
 | 2512163-李思翰 | 任务一：物理内存探测与 Page 描述符初始化（`page_init`）；任务三代码复核与修订（FIX-1…FIX-7）；任务三独立外部验证层 `buddy_verify.c`（10 组用例 / 205 条断言）；`kern_init()` 中的模块接入；报告「实验目的」「整体逻辑分析」 |
-| 2512436-郭睿彤 | 任务二：理解 First-Fit 连续物理内存分配算法；实现 Best-Fit 分配器并切换 `init_pmm_manager`；「测试与验证」章节 |
-| 2512130-刘婕 | 任务三：Buddy System 模块（`buddy_pmm.c`）与自检（`buddy_test.c`）；任务四：SLUB 模块（`slub.c`）与自检（`slub_test.c`）；报告「实验环境」「总结与收获」、T1/T2b 分析段、`prompt.md` 汇总、Git 提交推送 |
+| 2512436-郭睿彤 | 任务二：理解 First-Fit 连续物理内存分配算法；实现 Best-Fit 分配器并切换 `init_pmm_manager`；任务一的边界测试（负向验证，3 组）；SLUB 扩展测试设计；「测试与验证」章节与全部实测截图 |
+| 2512130-刘婕 | 任务三：Buddy System 模块（`buddy_pmm.c`）与自检（`buddy_test.c`）；任务四：SLUB 模块（`slub.c`）与自检（`slub_test.c`）；报告「实验环境」「总结与收获」、T1/T2b 分析段、`prompt.md` 汇总 |
 
 ### 实验报告分工
 
 | 成员 | 负责的报告章节 |
 |------|----------------|
 | 2512163-李思翰 | 一、实验目的；三、实验整体逻辑分析；四、任务一（物理内存初始化）；四、任务三的交叉复核说明 |
-| 2512436-郭睿彤 | 四、任务二（First-Fit 理解与 Best-Fit 实现）；五、测试与验证 |
+| 2512436-郭睿彤 | 四、任务二（First-Fit 理解与 Best-Fit 实现）；五、测试与验证（含全部实测截图与 T1 边界测试记录） |
 | 2512130-刘婕 | 二、实验环境；四、任务一分析段、任务二分析段、任务三、任务四；六、实验总结与收获；`prompt.md` 汇总 |
 
 > 任务三由两名成员分工完成：2512130-刘婕 负责 Buddy 的**实现**与实现者自检（`buddy_pmm.c` / `buddy_test.c`），2512163-李思翰 在复核阶段负责**缺陷修订**与**独立外部验证层**（`buddy_verify.c`）。两层测试的分工与差异见第四章功能模块三。
+>
+> 任务一的**边界测试**由 2512436-郭睿彤 完成：在测试副本中逐个篡改设备树报告的内存大小，验证 `page_init()` 在无效输入下会 panic 而非错误地注册空闲页。这是对框架自检的补充——框架只覆盖正常路径。记录见第五章 5.1.1。
 
 ---
 
@@ -84,8 +86,31 @@ lab2/
 └── report/
     ├── report.md      # 本文件
     ├── prompt.md      # 本实验全部提示词
-    └── images/        # 测试截图
+    ├── images/        # 测试截图（14 张）
+    └── logs/          # 原始串口运行输出（文本）
 ```
+
+### 交付物清单
+
+本目录即为可直接上交的完整交付物，报告与提示词正文引用的每一张图、每一个日志文件都在下列清单内，不依赖任何目录外资源。
+
+| 交付物 | 路径 | 内容 |
+| --- | --- | --- |
+| 实验报告 | `report/report.md` | 本文件，六章正文，含 14 张截图 |
+| 提示词汇总 | `report/prompt.md` | 九组提示词 + 李思翰组原文附录（T1-1/T1-2/T1-3/T3-2） |
+| 测试截图 | `report/images/` | 14 张 PNG，覆盖 Best-Fit 启动、三个边界测试、Buddy 自检与外部验证层、SLUB 自检、三次 `make grade` |
+| 原始运行输出 | `report/logs/T1_T2b运行输出.txt` | 任务一 / 任务二 b 的完整串口日志（OpenSBI 引导 → 框架自检 → Buddy 验证层 → `buddy verify PASS`） |
+| 原始运行输出 | `report/logs/T3_buddy运行输出_Best-Fit底座.txt` | 任务三在 Best-Fit 底座上的完整串口日志（10 组 / 205 条通过） |
+| 物理内存探测实现 | `code/kern/mm/pmm.c` | `page_init()` 的探测、描述符布局与空闲区注册 |
+| Best-Fit 分配器 | `code/kern/mm/best_fit_pmm.c` | 有序空闲链表的 Best-Fit 实现，与框架 `pmm_manager` 契约对齐 |
+| Buddy System | `code/kern/mm/buddy_pmm.c`、`buddy_pmm.h` | 页级 Buddy 分配器，池内偏移异或 + 双重空闲判定 + 合并取偏移较小者 |
+| Buddy 自检 | `code/kern/mm/buddy_test.c`、`buddy_test.h` | 7 个子测试（实现者侧） |
+| Buddy 外部验证层 | `code/kern/mm/buddy_verify.c`、`buddy_verify.h` | 10 组用例 / 205 条计数式断言（独立第三方侧，失败只计数不 panic） |
+| SLUB 分配器 | `code/kern/mm/slub.c`、`slub.h` | 9 档 size class、每 slab 1 页、free list 藏于空闲对象自身 |
+| SLUB 自检 | `code/kern/mm/slub_test.c` | 6 个子测试 |
+| 内核接入 | `code/kern/init/init.c` | `pmm_init()` 之后的 Buddy / SLUB 初始化与自检调用顺序 |
+| 评测脚本 | `code/tools/inject.py` | 把评分用例注入 `pmm_init()` 末尾 |
+| 评测用例 | `code/tools/test_lab2.c`、`test_lab2.h` | 框架自带的 `check page init` / `check best fit` 两项检查 |
 
 ---
 
@@ -113,6 +138,35 @@ lab2/
 ---
 
 ## 四、实验内容与实现
+
+### 本章导读：Spec 与 Prompt 的写法
+
+实验要求"说明每个练习的 spec 怎么写的，prompt 怎么写的"。本组四个练习的提示词全部采用实验指导书规定的四段式结构，各段的职责划分如下：
+
+| 段 | 写什么 | 不写什么 | 作用 |
+|---|---|---|---|
+| `[PROMPT]` | 任务目标、操作约束、输出要求 | 具体算法步骤、数据结构选型 | 让 AI 知道**边界在哪**：能改哪些文件、必须保留哪些标记、要交付什么 |
+| `[RELY]` | 从工程真实代码里摘出的接口签名、宏定义、结构体字段 | 对这些接口的"评价"或"改进建议" | 把"AI 以为的接口"换成"工程里真实的接口"，这是消除臆造的关键 |
+| `[GUARANTEE]` | 必须存在的函数签名、常量取值、可新增的内容范围 | 函数的实现 | 锁定**接口契约**，让不同轮次的输出可直接对接 |
+| `[SPECIFICATION]` | 每个函数的 Pre-Condition / Post-Condition / Case 1..N / Requirements | 与 Case 重复的实现描述 | 锁定**行为契约**：什么输入下必须产生什么输出，哪些极端情况必须怎么处理 |
+
+各练习的 spec 写法有一个共同的取舍：**抽象到"行为"而非"实现"，但对"必须这样否则就错"的具体细节破例保留**。
+
+以任务三的 Buddy System 为例，若只写"实现 buddy 地址计算"，AI 会给出各种合理但错误的实现。本组在首轮生成后追加了三条具体约束：
+
+1. 对齐判断必须基于**物理页号**而非物理地址（物理地址低位含 `va_pa_offset`，取模结果与真实页对齐关系无关）；
+2. 判定某个候选 buddy 是否空闲，必须**同时**检查空闲标志位与它记录的阶数（只比较阶数会把空闲块内部的页误判为块首，链表随即被破坏）；
+3. 合并后的块首必须取两个块中**页偏移较小者**（取错会导致高阶块不再满足对齐要求，后续所有 buddy 计算失效）。
+
+这三条的共同特点是：**每一条都对应一类"看起来能跑、但结果是错的"实现**。spec 的价值不在于把实现写清楚（那等于替 AI 代写），而在于把"这一类错误"提前排除。
+
+测试 prompt 的写法与实现 prompt 相反：**实现 prompt 越具体越好，测试 prompt 越贴近"性质"越好**。实现 prompt 用"必须这样实现"来排除错误；测试 prompt 用"必须具备这个性质、且能证伪某类缺陷"来构造判定条件。SLUB 的对象隔离测试是最典型的例子——写成"断言对象 B 的内容不等于 0xA5"会因为新分配页初值未定义而假失败，也无法真正证伪重叠缺陷；改为"先给 B 建立确定模式、再写 A、再验证 B 未变，并额外断言 A 确实已变"之后，断言才同时具备确定性与证伪能力。
+
+**测试 prompt 必须与实现 prompt 分离成两次独立请求。** 若在同一个 AI 上下文中连续生成实现与测试，测试会按实现所依赖的假设写断言——实现若误解了 buddy 语义，测试会按同样的误解写，两者"一致地错"，测试全绿而实现是错的。这正是实验指导书要求"分别设计两份 prompt"的原因。
+
+四个练习的提示词原文与逐条迭代说明见 `prompt.md`。
+
+---
 
 ### 功能模块一：物理内存初始化
 
@@ -156,6 +210,20 @@ void page_init(void);
 
 `get_memory_base()` 在解析失败时返回 0（`dtb.c` 的解析失败分支只打印警告，不修改静态变量）。若此时继续执行，`npage` 会算出 0 或一个非法值，后续所有 `pa2page()`、`alloc_pages()` 都会在错误的边界上工作，故障点会漂移到很远的地方，难以定位。在源头 `panic` 终止，是把错误暴露在最早的位置。
 
+#### 任务一的边界测试：三条异常路径（负责人：2512436-郭睿彤）
+
+框架的自检只覆盖正常路径。为了确认上述几条 `panic` 分支**真的会在正确的时机触发**，在测试副本中逐个注入异常输入，观察系统行为。三条测试全部通过，截图与完整输出见第五章 5.1.1。
+
+| 注入的异常 | 触发的检查 | 实测输出 |
+|---|---|---|
+| DTB 内存大小为 0 | `mem_base == 0 \|\| mem_size == 0` | `page_init: invalid physical memory info from device tree` |
+| 内存过小（`0x00207000`），描述符数组放不下 | `start_pa + array_bytes > mem_end` | `page_init: no room left for the page descriptor array` |
+| 内存上界非页对齐（`0x08000001`） | 无（应正常启动） | `free pages: 31929, npage: 557056`，多余 1 字节未被当作整页 |
+
+第三条是这组测试里最有价值的：它验证的是**"没有把碎片当成整页"**。若 `page_init()` 写成 `n_free = mem_end - free_start_pa` 而不是按页号上界计算，这多出的 1 字节就会让系统凭空多算出一个并不存在的物理页，而这种错误在正常输入下完全看不出来。
+
+> 这一组测试体现了**负向验证**的价值：框架的 `test_page_init()` 检查了 8 项正常路径的性质，但"错误时不做什么"这类性质只能靠人为注入异常来验证。三条测试都在**临时副本**中进行，恢复正常工程后 `make grade` 仍为 20/20，确认未污染提交代码。
+
 #### 最终提示词
 
 见 `prompt.md` 提示词一。
@@ -174,6 +242,38 @@ void page_init(void);
 
 > 本小节内容由 2512436-郭睿彤撰写。
 
+**① `default_init()`**
+
+负责初始化 First-Fit 物理内存管理器。函数将 `free_list` 初始化为空闲块双向链表的表头，并将 `nr_free` 置为 0。此时系统尚未将实际物理页交给分配器管理，因此空闲页数量为 0；后续由 `default_init_memmap()` 登记真正可用的连续物理页。
+
+**② `default_init_memmap(struct Page *base, size_t n)`**
+
+用于向 First-Fit 分配器注册一段连续的可用物理页。`base` 指向该段内存的第一张物理页描述符，`n` 表示页数。函数先检查页数大于 0，并确认每一页原先处于保留状态；随后清除页面标志、块长度和引用计数。函数将首页的 `property` 设置为 `n`，并设置 `PG_property` 标志，表示该页是长度为 `n` 的空闲块头。最后，函数将块头按照物理地址从低到高插入 `free_list`，并将 `nr_free` 增加 `n`。
+
+**③ `default_alloc_pages(size_t n)`**
+
+用于申请一段连续的 `n` 页物理内存。函数先检查请求页数和当前空闲页总数；若空闲页不足则返回 `NULL`。随后从 `free_list` 的低地址端开始顺序遍历，寻找**第一个**长度不小于 `n` 的空闲块——这就是 First-Fit 的含义。找到块后，函数将其从链表移除；若块长度大于请求页数，则将剩余部分拆分为新的空闲块并插回链表。最后减少 `nr_free`，清除已分配块头的 `PG_property` 标志，并返回分配块的起始页。
+
+**④ `default_free_pages(struct Page *base, size_t n)`**
+
+用于归还从 `base` 开始的连续 `n` 页物理内存。函数清除页面标志和引用计数，将 `base` 设置为长度为 `n` 的空闲块头，再按物理地址顺序插入 `free_list`，同时增加 `nr_free`。插入后，函数先检查前一个空闲块是否与当前块连续，连续则合并；随后检查合并后的块是否与后一个空闲块连续，连续则再次合并。该过程能减少外部碎片，使被切分的相邻区域重新变为较大的连续空闲块。
+
+**⑤ First-Fit 的改进空间**
+
+First-Fit 实现简单，找到第一个足够大的空闲块后即可停止查找，分配速度较快。但是，它容易在低地址区域反复分配，产生较多小碎片，可能导致后续较大的连续内存申请失败。可采用 Next-Fit、Best-Fit、按块大小分类的链表或平衡树等方式改进；代价是需要维护更多状态，算法实现也更复杂。
+
+> **与 Best-Fit 的对照**：第 ③ 步的扫描策略是 First-Fit 与 Best-Fit 的**唯一**差异——本组实现的 `best_fit_alloc_pages()` 把"遇到第一个就停"改为"遍历全部、记住 `property` 最小的那个"：
+
+```c
+if (page->property >= n &&
+    (best == NULL || page->property < best->property)) {
+    best = page;
+    if (page->property == n) break;   /* 找到恰好等大的块可提前结束 */
+}
+```
+
+`best == NULL` 这个判断同时处理了"第一个候选"与"后续更优候选"两种情况；而 `page->property == n` 时提前退出是合法的提前优化——**恰好等大的块不可能有更小的满足者**，且长度相同时按约定取地址较低者（链表本身按地址有序，先遇到的即地址较低者）。
+
 #### 任务二（之二）：实现 Best-Fit 连续物理内存分配算法
 
 **需要实现/修改的函数：**
@@ -189,6 +289,64 @@ static void init_pmm_manager(void);   // 切换 pmm_manager 指向
 **功能说明：**
 
 Best-Fit 与 First-Fit 共用同一套空闲链表管理与合并逻辑，**唯一差异在于扫描策略**：First-Fit 取链表中第一个满足容量的块，Best-Fit 遍历全部块取其中满足容量的最小者。
+
+**本组的实现要点**（由 2512436-郭睿彤完成，代码见 `kern/mm/best_fit_pmm.c`）：
+
+| 函数 | 要点 |
+|---|---|
+| `best_fit_init` | `list_init(&free_list)` + `nr_free = 0` |
+| `best_fit_init_memmap` | 逐页确认 `PageReserved` 后清标志，把 `base->property = n` 并置 `PG_property`，按地址升序插入链表 |
+| `best_fit_alloc_pages` | 遍历全链表记住 `property` 最小的候选块；`property == n` 时提前退出 |
+| `best_fit_free_pages` | 置 `base->property = n` 与 `PG_property`，按地址升序插入，再依次尝试与前驱、后继合并 |
+| `best_fit_nr_free_pages` | 直接返回 `nr_free` |
+
+三点值得注意：
+
+**第一，链表必须保持按地址有序。** `best_fit_init_memmap` 与 `best_fit_free_pages` 里的插入逻辑都是"从表头遍历，找到第一个地址大于自己的块，插到它前面；若遍历到末尾则插到末尾"。这个有序性有两个作用：一是同容量块中地址较低者先被扫描到（对应提示词第 4 条"长度相同时选地址较低的块"），二是释放时的前驱/后继合并依赖地址连续判断。
+
+**第二，分配时的拆分必须把剩余块插回原位。** 实现记录了被选中块的 `list_prev`，拆分后把剩余块插到这个位置而不是链表头：
+
+```c
+list_entry_t *prev = list_prev(&(best->page_link));
+list_del(&(best->page_link));
+if (best->property > n) {
+    struct Page *remain = best + n;
+    remain->property = best->property - n;
+    SetPageProperty(remain);
+    list_add(prev, &(remain->page_link));   /* 插回原位，保持有序 */
+}
+```
+
+若插到链表头，链表就失去有序性，上面第一条的性质随之失效。
+
+**第三，释放时的合并要检查两个方向，且注意 `base` 可能在与前驱合并后改变。** 实现先查前驱：
+
+```c
+list_entry_t *le = list_prev(&(base->page_link));
+if (le != &free_list) {
+    p = le2page(le, page_link);
+    if (p + p->property == base) {
+        p->property += base->property;
+        ClearPageProperty(base);
+        list_del(&(base->page_link));
+        base = p;              /* ★ base 指向合并后的块首 */
+    }
+}
+```
+
+合并后 `base` 必须更新为 `p`（合并后块的块首），否则后继合并判断 `base + base->property == p` 会用错基准。这正是框架 `best_fit_check` 末尾 `assert(count == 0 && total == 0)` 所要求的"精确还原"。
+
+**④ `init_pmm_manager()` 的切换**
+
+```c
+static void init_pmm_manager(void) {
+    pmm_manager = &best_fit_pmm_manager;      // ← 改这一行
+    cprintf("memory management: %s\n", pmm_manager->name);
+    pmm_manager->init();
+}
+```
+
+实测输出 `memory management: best_fit_pmm_manager`，确认切换生效（见第五章图 5-1）。
 
 #### 框架测试函数对实现的三条隐含约束（负责人：2512130-刘婕）
 
@@ -709,7 +867,7 @@ for (int i = 0; i < 64; i++) assert(a[i] == 0xA5);   // a 确实被改了，证�
 
 本实验的验证分为两类：框架自带的自动评测（`make grade`）与本组自行编写的 Buddy/SLUB 自检测试。
 
-> 本章节的框架评测部分与截图归集由 2512436-郭睿彤 撰写；Buddy 与 SLUB 的自检结果由 2512130-刘婕 补充。
+> 本章节的框架评测、任务一边界测试与全部实测截图由 2512436-郭睿彤 执行并提供；Buddy 与 SLUB 的自检结果由 2512130-刘婕 补充整合。
 
 ### 5.1 框架自动评测
 
@@ -722,7 +880,74 @@ for (int i = 0; i < 64; i++) assert(a[i] == 0xA5);   // a 确实被改了，证�
 
 评测通过 `tools/inject.py` 把 `tools/test_lab2.c` 注入临时副本后运行，**不修改学生提交的源码**。
 
-> 截图与具体执行记录由 2512436-郭睿彤 补充。
+**实测结果**（整合后的完整工程，`make grade`）：
+
+```
+lab2 injection complete
++ ld bin/kernel
+riscv64-unknown-elf-objcopy bin/kernel --strip-all -O binary bin/ucore.img
+  -check page init:                          OK
+  -check best fit:                           OK
+Total Score: 20/20
+```
+
+![BestFit 启动与框架测试成功](images/01-BestFit启动与框架测试成功.png)
+
+*图 5-1　Best-Fit 已启用且框架自检通过。串口输出中 `memory management: best_fit_pmm_manager` 表明 `init_pmm_manager()` 已切换到 best_fit；`check_alloc_page() succeeded!` 表明框架的 `best_fit_check()` 全部断言通过。*
+
+![make grade 20 分](images/03-make-grade-20分.png)
+
+*图 5-2　`make grade` 得到满分 20/20。编译行中 `best_fit_pmm.c`、`buddy_pmm.c`、`buddy_test.c`、`buddy_verify.c`、`slub.c`、`slub_test.c` 全部参与，说明三个模块已同时链接进内核。*
+
+另一名成员在 WSL 环境下独立复现了同一流程，截图同时包含**完整编译过程**与**内核启动输出**，可与图 5-1 相互印证：
+
+![T1/T2b 编译与启动全景](images/02-WSL编译与BestFit启动全景.png)
+
+*图 5-3　在 WSL 终端中执行 `make clean && make -j4 && make qemu` 的完整过程。上半部分是编译与链接输出，可见 `best_fit_pmm.c`、`buddy_pmm.c`、`buddy_test.c`、`buddy_verify.c` 全部参与编译；下半部分是 OpenSBI 引导与内核启动，其中 `memory management: best_fit_pmm_manager` 与 `check_alloc_page() succeeded!` 与图 5-1 完全一致。*
+
+> 图 5-3 的 `free pages: 31925` 与图 5-1 的 `31929` 相差 4 页，`page descriptors` 的物理地址也不同（`0x8020b000` vs `0x80207000`）。这一差异并非 bug：`page_init()` 把描述符数组紧接在链接符号 `end` 之后放置，内核镜像每大一点，描述符数组整体后移，可用空闲页就相应减少。**判断实现是否正确的依据是三者之间的关系成立（`npage` 恒为 557056、描述符数组恒为 320 页），而不是某一个具体数字。**
+
+启动阶段的关键输出（同一份构建）：
+
+```text
+memory management: best_fit_pmm_manager
+physical memory: base = 0x0000000080000000, size = 0x0000000008000000, end = 0x0000000088000000
+page descriptors: va = 0xffffffffc0207000, pa = 0x0000000080207000, 320 pages
+free pages: 31929, npage: 557056
+check_alloc_page() succeeded!
+```
+
+> **这组数字是本报告后续引用的基准。** `npage = 557056 = PPN(0x88000000)`；描述符数组 320 页；空闲 31929 页（其余为 OpenSBI、内核镜像与描述符数组本身）。注意 `end = 0xffffffffc0206078` —— 内核镜像末尾**不是页对齐**的，而描述符数组起点 `0xffffffffc0207000` 是页对齐的，这正是 `ROUNDUP(end, PGSIZE)` 的作用。
+
+#### 5.1.1 任务一的边界测试（负向验证）
+
+框架的自检只覆盖正常路径。为确认 `page_init()` 在异常输入下**不会错误地注册空闲页**，2512436-郭睿彤 在测试副本中逐个篡改设备树报告的内存大小，观察系统的行为：
+
+| # | 注入的异常 | 系统行为 | 截图 |
+|---|---|---|---|
+| 1 | DTB 内存大小为 0 | `page_init: invalid physical memory info from device tree`，在注册空闲页**之前**终止 | [图 5-4](images/04-T1边界测试1-DTB内存大小为0-panic.png) |
+| 2 | 内存过小，描述符数组放不下（`0x00207000`） | `page_init: no room left for the page descriptor array`，不继续注册错误的空闲区 | [图 5-5](images/05-T1边界测试2-描述符空间不足-panic.png) |
+| 3 | 内存上界非页对齐（`0x08000001`，多 1 字节） | **正常启动**，`npage` 仍为 557056、空闲页仍为 31929，多出的 1 字节未被当作完整物理页 | [图 5-6](images/06-T1边界测试3-物理上界非页对齐.png) |
+
+![T1 边界测试 1](images/04-T1边界测试1-DTB内存大小为0-panic.png)
+
+*图 5-4　DTB 报告内存大小为 0 时，`page_init()` 在 `init_pmm_manager()` 之后、`init_memmap()` 之前 panic 终止。*
+
+![T1 边界测试 2](images/05-T1边界测试2-描述符空间不足-panic.png)
+
+*图 5-5　内存不足以容纳 Page 描述符数组时 panic。注意报错位置是 `kern/mm/pmm.c:112`，即 `array_bytes` 越界的检查点。*
+
+![T1 边界测试 3](images/06-T1边界测试3-物理上界非页对齐.png)
+
+*图 5-6　物理内存上界多出 1 字节时系统仍正常启动，且空闲页数与边界测试前一致——多出的 1 字节没有被向上取整成一个完整物理页。*
+
+第 3 项是这组测试里最有价值的一条：**它验证的是"没有把碎片当成整页"**。若 `page_init()` 写成 `n_free = mem_end - free_start_pa` 而不是按页号上界计算，这 1 字节就会让系统多算出一个并不存在的物理页。
+
+测试完成后恢复正常工程，再次 `make grade` 仍为 20/20，确认边界测试**没有污染提交代码**——所有注入都在临时副本中进行。
+
+![T1 测试后恢复正常 make grade 20 分](images/07-T1测试后恢复正常-make-grade-20分.png)
+
+*图 5-7　边界测试全部完成后恢复正常工程，再次 `make grade` 仍为 20/20。说明边界测试使用的临时注入改动没有残留到提交版本中。*
 
 ### 5.2 Buddy System 自检
 
@@ -733,11 +958,9 @@ Buddy 有**两层**自检，二者输出不同的标记行：
 | `kern/mm/buddy_test.c` | 实现者自检，7 个子测试，裸 `assert` | `buddy test: PASS` |
 | `kern/mm/buddy_verify.c` | 独立外部验证，10 组用例，计数式检查 | `[verify] summary: 10/10 groups passed, 205/205 checks passed` 与 `[verify] RESULT: buddy verify PASS` |
 
-接入 `kern/init/init.c` 的 `kern_init()` 后，实际串口输出为：
+**实测输出**（`make qemu`，截取自串口）：
 
-```
-buddy: pool base pa 0x........, 4096 pages, MAX_ORDER 12
-[buddy-test] 1/7 alloc & alignment
+```text
 [buddy-test] 2/7 round up to power of two
 [buddy-test] 3/7 split
 [buddy-test] 4/7 merge
@@ -747,13 +970,51 @@ buddy: pool base pa 0x........, 4096 pages, MAX_ORDER 12
 buddy test: PASS
 [verify] ===== buddy verify start (Li Sihan 2512163) =====
 [verify] -- V1  exact 2^k request
+buddy: pool base pa 0x000000008034d000, 4096 pages, MAX_ORDER 12
 [verify] PASS V1  exact 2^k request
+...
+[verify] -- V7  illegal frees are rejected safely
+buddy: pool base pa 0x000000008034d000, 4096 pages, MAX_ORDER 12
+buddy: free rejected: address is not inside the buddy pool
+buddy: free rejected: address is not a buddy allocated block head
+buddy: free rejected: n = 1 does not match block order 2 (4 pages)
+buddy: free rejected: n = 8 does not match block order 2 (4 pages)
+buddy: free rejected: address is not a buddy allocated block head
+[verify] PASS V7  illegal frees are rejected safely
 ...
 [verify] summary: 10/10 groups passed, 205/205 checks passed
 [verify] RESULT: buddy verify PASS
+[verify] ===== buddy verify end =====
+slub test: PASS
 ```
 
+![Buddy 与 SLUB 编译接入成功](images/08-Buddy与SLUB编译接入成功.png)
+
+*图 5-8　Buddy 与 SLUB 全部文件参与编译并链接成功，内核正常启动。*
+
+![Buddy 测试与验证开始](images/09-Buddy测试与验证开始.png)
+
+*图 5-9　从内核启动到 Buddy 验证的连续日志。可以看到完整的启动信息（`memory management: best_fit_pmm_manager`、`free pages: 31929, npage: 557056`、`check_alloc_page() succeeded!`）、7 个 Buddy 子测试的逐行进度、以及验证层 V1–V6 的执行过程。*
+
+![Buddy 完整验证与 SLUB 测试通过](images/10-Buddy完整验证与SLUB测试通过.png)
+
+*图 5-10　三层测试全部通过：7 个 Buddy 子测试、10 组验证用例共 205 条检查、SLUB 自检。V7 用例打印的四条拒绝信息，是 FIX-3 的释放契约校验在运行时真实生效的直接证据。*
+
+在 WSL 环境下独立复现的一次 Buddy 验证层运行，完整保留了 V1–V10 全部十组用例的输出：
+
+![Buddy 验证层完整输出](images/11-Buddy验证层完整输出.png)
+
+*图 5-11　独立复现的 Buddy 验证层完整输出。上半部分是 7 个实现者自检子测试的逐行进度，下半部分是 10 组外部验证用例，每组均打印 `PASS`。V7 段落可见 5 条 `buddy free rejected: ...` 诊断信息（池外地址、非块首、阶数偏小、阶数偏大、重复释放），最终汇总结论为 `10/10 groups passed, 205/205 checks passed`。*
+
+> **两次运行的一致性说明**：图 5-10 记录的池基址是 `0x000000008034d000`，图 5-11 是 `0x000000008034b000`——同为 `4096 pages, MAX_ORDER 12`。基址不同是因为两次构建的内核镜像大小不同（描述符数组位置随之移动），best_fit 在其有序空闲链表上分配管理池时命中的块位置不同。**池大小、阶数上限、用例组数与检查项数四项完全一致**，这才是可比的量。
+
+两次运行的**完整原始串口日志**保存在 `report/logs/` 下：`T3_buddy运行输出_Best-Fit底座.txt` 是任务三在 Best-Fit 底座上的逐行输出（含 V7 段落五条 `buddy free rejected:` 诊断与结尾的 `10/10 groups passed, 205/205 checks passed`），`T1_T2b运行输出.txt` 是任务一 / 任务二 b 的完整引导与启动过程。
+
+> **V7 的那四行拒绝信息值得单独看。** 它们不是测试代码打印的，而是 `buddy_free_pages_checked()` 在拒绝非法释放时自己打印的诊断信息——`address is not inside the buddy pool`（池外地址）、`address is not a buddy allocated block head`（非块首）、`n = 1 does not match block order 2 (4 pages)`（n 偏小）、`n = 8 does not match block order 2 (4 pages)`（n 偏大）。**四条路径全部被触发并全部被拒绝**，这正是核心机制五所描述的契约校验。
+
 > 逐行进度打印是 2512163-李思翰 在复核阶段补上的：原来的 7 个子测试是一条 `assert` 链，任何一条失败都会 `panic` 让内核停住，从串口输出上只能看到 `assertion failed: ...` 而看不出是哪一条。`buddy_verify.c` 进一步做到"失败只计数、绝不 panic"，因此一次运行能报告全部失败点而非停在第一个。
+
+> **池基址的观测值**：所有十组用例的 `buddy: pool base pa 0x000000008034d000` 完全相同。这说明 `buddy_init()` 每次都从底层拿到同一块连续空间——`vt_reset()` 先把旧池归还给 best_fit，再重新申请，best_fit 的地址有序链表使它总是命中同一块。**这也顺带证明 buddy 的 10 组用例确实都在同一个确定的初始状态下运行**，而不是在不同状态下"碰巧通过"。
 
 ### 5.3 SLUB 自检
 
@@ -761,7 +1022,37 @@ buddy test: PASS
 
 SLUB 的初始化与自检排在 `buddy_verify()` 之后执行——`buddy_verify` 内部的 `vt_reset()` 会重建 Buddy 管理池，SLUB 若先跑并持有旧池中的页，重建时该页会被归还给底层分配器。
 
-> 实测输出截图由 2512130-刘婕 补充。
+图 5-10 中出现的 `slub test: PASS` 对应 `kern/mm/slub_test.c` 的六个子测试。2512436-郭睿彤 在任务四阶段另有一份 SLUB 扩展测试设计，把测试维度从六个子测试扩展到五个方面：对每个 size class 测 s−1/s/s+1 的边界请求、跨 slab 分配、释放后的数据存活、耗尽与恢复、以及固定种子的随机混合压力。提示词原文见 `prompt.md` 提示词二之二。
+
+![SLUB 自检输出](images/12-SLUB自检输出.png)
+
+*图 5-12　SLUB 自检结论的放大截图。图 5-10 中 `slub test: PASS` 一行位于 Buddy 验证层汇总结论之后，说明 SLUB 的六个子测试在 Buddy 重建管理池之后全部通过，两层自检的执行顺序与第四章的设计一致。*
+
+#### 5.3.1 本组 SLUB 实现的实际参数
+
+下表是 `kern/mm/slub.c` 与 `kern/mm/slub.h` 中实际生效的参数，逐项对应实现的代码位置，不含规划中但未落地的项。
+
+| 项目 | 实现取值 | 代码位置 / 说明 |
+| --- | --- | --- |
+| 对象分配 / 释放 API | `void *slub_alloc(size_t size)` / `void slub_free(void *ptr)` | `slub.h`；释放参数非法时 `panic` |
+| size class 档位数 | 9 档：`16, 32, 64, 128, 256, 512, 1024, 2048, 4096` | `slub_size_classes[SLUB_NR_CLASS]`，`SLUB_NR_CLASS = 9` |
+| 每次新建 slab 的页数 | 1 页 | `slub_new_slab()` 调用 `buddy_alloc_pages(1)` |
+| 每 slab 的槽位数 | `PGSIZE / obj_size`（如 16 字节档为 4096 个槽） | 由 `PGSIZE = 4096` 决定 |
+| free list 存放形式 | 藏在空闲对象**自身的前 8 字节** | 对象空闲时其首 8 字节存下一个空闲块的指针 |
+| 分配对齐 | 8 字节 | `SLUB_ALIGN = 8`，覆盖 9 档全部 size class |
+| slab 描述符存放方式 | 固定静态数组，`SLUB_MAX_SLABS = 64` | `slub.h`；容量上限 64 × 1 页 = 256 KB |
+| 空 slab 是否归还 Buddy | **不归还** | slab 一旦创建便常驻，仅在对象全部释放后复用其槽位 |
+| 超过最大对象（> 4096 字节） | 返回 `NULL` | 不 panic，调用方需自行判空 |
+| 非 size class 倍数的请求 | 向上取整到最近的档位 | 例如请求 100 字节落到 128 字节档 |
+| 非法地址 / 非法指针释放 | `panic` | `slub_free()` 中按 slab 地址区间与对齐反查归属 |
+
+#### 5.3.2 三处设计取舍
+
+**slab 的页来自 Buddy，而不再向上申请。** `slub_new_slab()` 调用的是 `buddy_alloc_pages(1)`，即每次只向底层要一页。这样做的好处是 SLUB 不会在 Buddy 之上再制造一层外部碎片——Buddy 本身的合并机制保证它拿到的页是连续且对齐的；代价是 slab 的物理位置不再紧凑，因此**不能**用 slab 的物理相邻关系来推断对象相邻，free list 必须显式维护。
+
+**空 slab 不归还给 Buddy。** 当某个 slab 的全部对象都被释放后，这个 slab 仍然保留在 slab 数组中，其页不再回到 Buddy 的空闲池。这一取舍让 `slub_free()` 的路径只有"标记空闲并挂回 free list"一种，不会出现 slab 被回收后其空闲对象指针悬空的问题；同时这也意味着：**Buddy 层的 `nr_free` 与系统初始空闲页数之间的差值，等于已被 SLUB 领走且尚未归还的 slab 页数**，而不是泄漏的页数。评测中判断内存泄漏必须以 Buddy 层的计数为准并扣除 SLUB 已占用的 slab 页数，不能把 SLUB 正常持有的页算成泄漏。
+
+**最小档 16 字节带来约 44% 的内部碎片上界。** 对 `size` 请求，分配到的实际空间是 `2^ceil(log2(size))`，因此最坏情况出现在 `size` 刚好超过前一档时（如请求 17 字节占用 32 字节）。最小档 16 字节时，17 字节请求占用 32 字节，内部碎片上界约为 `1 - 17/32 ≈ 47%`，取整后约 44%。这个上界换来的是 free list 的指针对齐保证（8 字节对齐下前 8 字节可安全存放指针）与实现简单性；如果把最小档降到 8 字节，下界减半但前 8 字节恰好被指针占满，无法再存放任何标记，代价是失去对象状态标识能力。
 
 ### 5.4 评测安全边界：哪些代码必须排在评分之后
 
@@ -774,6 +1065,18 @@ SLUB 的初始化与自检排在 `buddy_verify()` 之后执行——`buddy_verif
 | `pmm_init()` 内部 | `init_pmm_manager()`、`page_init()`、`check_alloc_page()` | 评分测试无法执行，得零分 |
 | `pmm_init()` 末尾（注入点） | `test_page_init()`、`test_best_fit()` | **评分输出在此打印** |
 | `kern_init()` 中 `pmm_init()` 之后 | `buddy_init()`、`buddy_test()`、`buddy_verify()`、`slub_init()`、`slub_self_test()` | 评分输出已打印完毕，**不影响得分** |
+
+**这一约束已被实测证实**：图 5-10 中 Buddy 与 SLUB 的测试全部运行在 `slub test: PASS` 之后，而图 5-13 中紧随其后的 `make grade` 仍然得到 20/20——说明 Buddy/SLUB 模块的整合**没有破坏**框架的 `page_init` 与 Best-Fit 两项评分。
+
+![整合后 make grade 20 分](images/13-整合后make-grade-20分.png)
+
+*图 5-13　在 Buddy 与 SLUB 已整合进内核、其自检全部运行之后，`make grade` 仍为 20/20。这是评测安全边界成立的直接证据。*
+
+最终提交版本上的评测结果见图 5-14。这次运行的编译行完整列出了参与编译的全部源文件——包括 `best_fit_pmm.c`、`buddy_pmm.c`、`buddy_test.c`、`buddy_verify.c`、`slub.c`、`slub_test.c` 与注入的 `test/test_lab2.c`——说明 Buddy 与 SLUB 模块确实进入了内核镜像并被链接，而不是以独立测试程序的形式旁路运行。
+
+![最终 make grade 20 分](images/14-最终make-grade-20分.png)
+
+*图 5-14　最终提交版本在 Ubuntu 虚拟机中执行 `make grade` 的结果：`check page init` 与 `check best fit` 两项均为 OK，`Total Score: 20/20`。*
 
 ---
 
@@ -857,7 +1160,7 @@ AI 写的实现与 AI 写的测试可能共享同一个错误理解。破解办�
 
 ### 6.3 全组结论
 
-三名成员分工协作完成了 Lab2。成员一负责物理内存探测与 Page 描述符初始化，产出了 `page_init` 实现与该模块的提示词记录，并在任务三阶段承担了代码复核（定位并修复 FIX-1…FIX-7）与独立外部验证层 `buddy_verify.c`；成员二负责 First-Fit 算法的理解与 Best-Fit 分配器的实现，产出了 `best_fit_pmm.c` 与 `pmm_manager` 的切换；成员三负责 Buddy System 与 SLUB 两个任务的实现与测试设计，产出了 `buddy_pmm.c`、`buddy_test.c`、`slub.c`、`slub_test.c` 四个模块以及本实验全部六组提示词的规范化汇总。
+三名成员分工协作完成了 Lab2。成员一负责物理内存探测与 Page 描述符初始化，产出了 `page_init` 实现与该模块的提示词记录，并在任务三阶段承担了代码复核（定位并修复 FIX-1…FIX-7）与独立外部验证层 `buddy_verify.c`；成员二负责 First-Fit 算法的理解与 Best-Fit 分配器的实现，产出了 `best_fit_pmm.c` 与 `pmm_manager` 的切换；成员三负责 Buddy System 与 SLUB 两个任务的实现与测试设计，产出了 `buddy_pmm.c`、`buddy_test.c`、`slub.c`、`slub_test.c` 四个模块，以及全组九组提示词的规范化汇总。
 
 通过本实验，全组掌握了物理内存从探测到分配的完整链路，理解了描述符数组、页号语义、空闲链表组织方式与分配策略之间的内在关联；通过独立实现 Buddy 与 SLUB，进一步理解了块大小取 2 的幂这一约束如何同时带来对齐保证、外部碎片消除与合并效率，也理解了对象级分配器存在的必要性。
 

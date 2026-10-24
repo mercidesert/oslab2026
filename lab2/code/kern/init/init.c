@@ -43,7 +43,7 @@ int kern_init(void) {
     // grade_backtrace();
     pmm_init();  // init physical memory management
 
-    /* lab2 function3/function4: Buddy System 与 SLUB
+    /* lab2 function3/function4 2512130 刘婕: Buddy System 与 SLUB
      *
      * 接入点放在 pmm_init() 之后、而非 pmm_init() 内部，有三个理由：
      *

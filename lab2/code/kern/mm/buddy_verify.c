@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 
-//lab2 function3 李思翰2512163
+//lab2 function3 2512163 李思翰
 
 /* ===================================================================
  * buddy_verify.c —— Buddy System 分配器的外部验证层
