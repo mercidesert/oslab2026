@@ -1,0 +1,10 @@
+# 构建产物
+bin/
+obj/
+*.o
+*.d
+*.log
+
+# 系统文件
+Thumbs.db
+.DS_Store
